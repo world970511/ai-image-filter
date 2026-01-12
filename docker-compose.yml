@@ -1,0 +1,42 @@
+# AI Image Filter Pipeline - Docker Compose
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-filter-api
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - ./data:/app/data
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Streamlit Frontend
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-filter-ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000/api/v1
+    depends_on:
+      - api
+    command: streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+
+# Optional: Local development with hot reload
+# docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
