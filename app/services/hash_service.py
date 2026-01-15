@@ -16,7 +16,7 @@ class HashService:
 
     def __init__(self, db_vectors_path: str = './data/ai_dinohashes.npy',
                  metadata_path: str = './data/ai_metadata.csv',
-                 threshold: float = 0.95):
+                 threshold: float = 0.85):
         """
         HashService 
 

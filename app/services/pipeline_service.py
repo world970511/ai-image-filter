@@ -26,7 +26,7 @@ class PipelineService:
         self,
         db_vectors_path: str = './data/ai_dinohashes.npy',
         metadata_path: str = './data/ai_metadata.csv',
-        similarity_threshold: float = 0.95
+        similarity_threshold: float = 0.85
     ):
         """
         PipelineService 초기화
@@ -39,7 +39,7 @@ class PipelineService:
         self.hash_service = HashService(
             db_vectors_path=db_vectors_path,
             metadata_path=metadata_path,
-            threshold=similarity_threshold
+            threshold=similarity_threshold if similarity_threshold else 0.85
         )
         self.metadata_service = MetadataService()
         self.detection_service = DetectionService()
@@ -144,11 +144,16 @@ class PipelineService:
     ) -> tuple[VerdictType, float, str]:
         """
         종합 판정 계산
-        
+
         가중치 기반 판정:
-        - AI Detection: 60%
-        - Metadata: 30%
-        - Hash: 10%
+        - Hash: 30% (DinoV2 유사도, 점진적 계산)
+        - Metadata: 40% (EXIF 진위성 + C2PA/시그니처)
+        - AI Detection: 30% (HuggingFace 모델)
+
+        Hash 점진적 계산:
+        - 85% 이상: AI 점수 (강도에 비례)
+        - 70-85%: 불확실 영역 (양쪽 점수 분배)
+        - 70% 미만: Real 점수
         """
         scores = {
             "ai": 0.0,
@@ -156,18 +161,36 @@ class PipelineService:
         }
         reasons = []
         
-        # 1. Hash 기반 판정 (DinoV2 벡터 유사도)
-        if hash_result.is_ai:
-            scores["ai"] += self.HASH_WEIGHT
+        # 1. Hash 기반 판정 (DinoV2 벡터 유사도) - 점진적 점수 계산
+        similarity = hash_result.similarity
+
+        if similarity >= 0.85:
+            # 85% 이상: 확실한 AI 이미지 (임계값 이상)
+            ai_score = self.HASH_WEIGHT * min((similarity - 0.85) / 0.15 + 0.5, 1.0)
+            scores["ai"] += ai_score
             reasons.append(
-                f"⚠️ AI 이미지 DB와 매칭됨 "
-                f"(유사도: {hash_result.similarity:.1%})"
+                f"⚠️ AI 이미지 DB와 {'매칭됨' if hash_result.is_ai else '높은 유사도'} "
+                f"(유사도: {similarity:.1%})"
+            )
+        elif similarity >= 0.70:
+            # 70-85%: 불확실한 영역 (유사하지만 확신 부족)
+            # 유사도에 비례하여 점수 분배
+            uncertainty = (0.85 - similarity) / 0.15
+            ai_portion = self.HASH_WEIGHT * 0.5 * (1 - uncertainty)
+            real_portion = self.HASH_WEIGHT * 0.5 * uncertainty
+            scores["ai"] += ai_portion
+            scores["real"] += real_portion
+            reasons.append(
+                f"⚠️ AI 이미지 DB와 중간 유사도 "
+                f"(유사도: {similarity:.1%}, 불확실)"
             )
         else:
-            scores["real"] += self.HASH_WEIGHT * 0.5
+            # 70% 미만: 실제 이미지 가능성
+            real_score = self.HASH_WEIGHT * 0.5
+            scores["real"] += real_score
             reasons.append(
-                f"✓ AI 이미지 DB에 미등록 "
-                f"(최대 유사도: {hash_result.similarity:.1%})"
+                f"✓ AI 이미지 DB와 낮은 유사도 "
+                f"(최대 유사도: {similarity:.1%})"
             )
         
         # 2. Metadata 기반 판정
