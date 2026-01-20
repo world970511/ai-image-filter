@@ -11,8 +11,9 @@
 - 이 서비스는 ai로 생성된 이미지의 경우 일반 디지털 사진에 있는 카메라 모델, 렌즈 유형, 셔터 속도, GPS 위치 정보 등 EXIF 데이터가 존재하지 않는다는 부분과 [Provenance Detection for AI-Generated Images: Combining Perceptual Hashing, Homomorphic Encryption, and AI Detection Models](https://arxiv.org/html/2503.11195v1)에 제시된 내용을 바탕으로 현재 해시 - 메타데이터 - 오픈소스 탐지 모델 이렇게 3Layer를 사용하여 이미지 데이터의 오염을 예방하는 것이 가능한지 테스트해보기 위해 진행하였습니다.  
 - DinoHash (DinoV2 기반 지각적 해싱) 사용 시 필요한 데이터는 [ai-vs-human-generated-dataset](https://www.kaggle.com/datasets/alessandrasala79/ai-vs-human-generated-dataset/data)를 다운받아 ai 생성 이미지 39975장을 DinoV2로 벡터화하여 npy 파일로 저장하여 활용하였습니다. 유사도 임계값은 DINOv2 논문과 의료 영상 연구를 참고하여 0.85로 설정하였으며, 70-85% 구간은 불확실 영역으로 점진적 점수를 부여합니다.  
 - 메타데이터 검사의 경우 EXIF 진위성 점수 계산을 핵심으로 하며, C2PA Content Credentials 검증과 AI 도구 시그니처 탐지를 보조적으로 활용합니다. EXIF 분석에서는 카메라 정보, 촬영 설정, GPS 등을 종합하여 진위성 점수 (0.0 ~ 1.0)를 계산하고 비정상 패턴을 탐지합니다.  
-- AI 모델은 허깅스페이스의 [ai_vs_human_generated_image_detection](https://huggingface.co/dima806/ai_vs_human_generated_image_detection)을 사용하였습니다.
-- 최종적으로는 해시/메타데이터/오픈소스 탐지 결과 각각에 0.3/0.4/0.3의 가중치를 각각 부여하여 종합적으로 판정하였습니다.  
+- AI 모델은 허깅페이스의 [ai_vs_human_generated_image_detection](https://huggingface.co/dima806/ai_vs_human_generated_image_detection)을 사용하였습니다.
+- 최종적으로는 해시/메타데이터/오픈소스 탐지 결과 각각에 0.3/0.4/0.3의 가중치를 각각 부여하여 종합적으로 판정하였습니다.
+- 허깅페이스에 배포하였습니다. [huggingface space](https://huggingface.co/spaces/nepark/ai-image-filter)
 ---
 
 ## 📋 목차
